@@ -20,6 +20,7 @@ from optparse import OptionParser # TODO use argparse instead
 
 import threading
 import sys
+import os
 
 IS_PYTHON2 = sys.version_info[0] == 2
 
@@ -41,6 +42,7 @@ import curses
     
 
 ZK_DEFAULT_PORT = 2181
+ZK_DEFAULT_CONF = "/etc/zookeeper/conf/zoo.cfg"
 
 usage = "usage: %prog [options]"
 parser = OptionParser(usage=usage)
@@ -61,7 +63,7 @@ parser.add_option("-l", "--logfile",
                   help="directory in which to place log file, or empty for none")
 parser.add_option("-c", "--config",
                   dest="configfile", default=None,
-                  help="zookeeper configuration file to lookup servers from")
+                  help="zookeeper configuration file to lookup servers from (default: %s)" % ZK_DEFAULT_CONF)
 parser.add_option("-t", "--timeout",
                   dest="timeout", default=None,
                   help="connection timeout to zookeeper instance")
@@ -72,6 +74,10 @@ if options.logfile:
     LOG.basicConfig(filename=options.logfile, level=getattr(LOG, options.verbosity))
 else:
     LOG.disable(LOG.CRITICAL)
+
+# Read servers from config if available
+if not options.configfile and options.servers == "localhost:%s" % ZK_DEFAULT_PORT and os.access(ZK_DEFAULT_CONF, os.R_OK):
+    options.configfile = ZK_DEFAULT_CONF
 
 resized_sig = False
 
@@ -381,7 +387,7 @@ def read_zk_config(filename):
 
 def get_zk_servers(filename):
     if filename:
-        config = read_zk_config(options.configfile)
+        config = read_zk_config(filename)
         client_port = config['clientPort']
         return ','.join("%s:%s" % (v.split(':', 1)[0], client_port) for k, v in config.items() if k.startswith('server.'))
     else:
